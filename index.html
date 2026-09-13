@@ -1,0 +1,629 @@
+
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最佳華服人氣獎 - 即時互動投票系統</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Noto Serif TC', serif;
+            background-color: #fdfaf6;
+            background-image: url('https://www.transparenttextures.com/patterns/rice-paper.png');
+        }
+        
+        .theme-red { color: #8b1c1c; }
+        .theme-bg-red { background-color: #8b1c1c; }
+        .theme-border-red { border-color: #8b1c1c; }
+        
+        .theme-gold { color: #d4af37; }
+        .theme-bg-gold { background-color: #d4af37; }
+        .theme-border-gold { border-color: #d4af37; }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(139, 28, 28, 0.15);
+            border: 1px solid #e8d5c4;
+        }
+
+        .hide { display: none !important; }
+
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Chart container adjustments */
+        #chart-container {
+            position: relative;
+            height: 50vh;
+            width: 100%;
+        }
+    </style>
+</head>
+<body class="min-h-screen text-gray-800 flex flex-col">
+
+    <!-- 畫面 1: 設定頁面 (Setup View) -->
+    <div id="setup-view" class="flex-grow flex items-center justify-center p-6 fade-in">
+        <div class="glass-panel w-full max-w-2xl rounded-2xl p-8 relative overflow-hidden">
+            <!-- Decorative corners -->
+            <div class="absolute top-0 left-0 w-16 h-16 border-t-4 border-l-4 theme-border-red m-4 rounded-tl-xl opacity-50"></div>
+            <div class="absolute bottom-0 right-0 w-16 h-16 border-b-4 border-r-4 theme-border-red m-4 rounded-br-xl opacity-50"></div>
+
+            <h1 class="text-4xl md:text-5xl font-black text-center mb-2 theme-red tracking-wider">最佳華服人氣獎</h1>
+            <p class="text-center text-gray-500 mb-8 font-sans tracking-widest">即時互動投票系統 - 控制台</p>
+
+            <div class="space-y-6 relative z-10">
+                <!-- Candidate Input -->
+                <div>
+                    <label class="block text-lg font-bold mb-2 theme-red">1. 新增參賽者 / 單位名稱</label>
+                    <div class="flex gap-2">
+                        <input type="text" id="candidate-input" class="flex-grow px-4 py-3 rounded-lg border-2 theme-border-gold focus:outline-none focus:ring-2 focus:ring-red-800 text-lg font-sans" placeholder="請輸入名稱，例如：01號 陳大文">
+                        <button onclick="addCandidate()" class="theme-bg-red hover:bg-red-900 text-white px-6 py-3 rounded-lg font-bold transition duration-300 shadow-md">
+                            <i class="fas fa-plus mr-1"></i> 新增
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Candidate List -->
+                <div class="bg-white p-4 rounded-lg border border-gray-200 min-h-[150px]">
+                    <ul id="candidate-list" class="space-y-2 font-sans">
+                        <li class="text-gray-400 text-center py-4" id="empty-msg">尚未新增任何參賽者</li>
+                    </ul>
+                </div>
+
+                <!-- Timer Input -->
+                <div>
+                    <label class="block text-lg font-bold mb-2 theme-red">2. 設定投票倒數時間</label>
+                    <div class="flex items-center gap-4">
+                        <input type="number" id="timer-minutes" value="3" min="0" max="60" class="w-24 px-4 py-3 rounded-lg border-2 theme-border-gold focus:outline-none text-center text-xl font-sans">
+                        <span class="text-xl font-bold">分鐘</span>
+                        <input type="number" id="timer-seconds" value="0" min="0" max="59" class="w-24 px-4 py-3 rounded-lg border-2 theme-border-gold focus:outline-none text-center text-xl font-sans">
+                        <span class="text-xl font-bold">秒</span>
+                    </div>
+                </div>
+
+                <!-- Start Button -->
+                <div class="pt-6 text-center">
+                    <button onclick="startEvent()" class="w-full theme-bg-gold hover:bg-yellow-600 text-white text-2xl font-bold py-4 rounded-xl shadow-lg transform transition hover:scale-105">
+                        <i class="fas fa-play-circle mr-2"></i> 建立投票活動
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 畫面 2: 即時看板頁面 (Dashboard View) -->
+    <div id="dashboard-view" class="hide flex-grow flex flex-col h-screen p-4 md:p-8 fade-in">
+        <!-- Header -->
+        <header class="text-center mb-6 relative">
+            <h1 class="text-4xl md:text-6xl font-black theme-red tracking-widest drop-shadow-sm mb-2">🌸 最佳華服人氣獎 🌸</h1>
+            <p class="text-xl text-gray-600 font-bold tracking-widest">即時投票結果</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="flex-grow flex flex-col lg:flex-row gap-6">
+            <!-- Left: Chart & Leaderboard -->
+            <div class="w-full lg:w-3/4 glass-panel rounded-2xl p-6 flex flex-col shadow-2xl relative">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold theme-red"><i class="fas fa-chart-bar mr-2"></i> 實時得票統計</h2>
+                    <div class="text-4xl md:text-5xl font-black theme-red font-sans tabular-nums" id="timer-display">00:00</div>
+                </div>
+                <div id="chart-container" class="flex-grow flex items-center justify-center">
+                    <canvas id="resultsChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Right: QR Code & Controls -->
+            <div class="w-full lg:w-1/4 flex flex-col gap-6">
+                <!-- QR Code Box -->
+                <div class="glass-panel rounded-2xl p-6 flex flex-col items-center justify-center shadow-xl text-center">
+                    <h3 class="text-xl font-bold theme-red mb-4"><i class="fas fa-mobile-alt mr-2"></i> 掃描條碼立即投票</h3>
+                    <div id="qrcode" class="bg-white p-4 rounded-xl shadow-inner mb-4 inline-block border-4 theme-border-gold"></div>
+                    <p class="text-sm text-gray-600 font-sans mb-3">請使用手機掃描上方 QR Code 進入投票頁面</p>
+                    <p id="qrcode-warning" class="text-xs text-red-500 font-sans mb-3 hide">(提示：預覽環境無法使用真實掃描，請點擊下方按鈕測試)</p>
+                    <button onclick="openVoterViewLocally()" class="bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold py-2 px-4 rounded-lg transition border border-gray-300 w-full">
+                        <i class="fas fa-external-link-alt mr-1"></i> 開啟測試投票介面
+                    </button>
+                </div>
+
+                <!-- Admin Controls -->
+                <div class="glass-panel rounded-2xl p-6 shadow-xl flex flex-col gap-4">
+                    <h3 class="text-lg font-bold theme-red mb-2"><i class="fas fa-cogs mr-2"></i> 控制面板</h3>
+                    
+                    <button id="btn-toggle-timer" onclick="toggleTimer()" class="w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 rounded-lg transition shadow">
+                        <i class="fas fa-play mr-2"></i> 開始計時
+                    </button>
+
+                    <button onclick="toggleSimulation()" id="btn-simulation" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition shadow flex items-center justify-center">
+                        <i class="fas fa-robot mr-2"></i> <span id="sim-text">開啟隨機模擬投票</span>
+                    </button>
+                    <p class="text-xs text-gray-500 font-sans text-center">*(展示用：自動增加票數以展示圖表動態)*</p>
+
+                    <button onclick="resetSystem()" class="w-full bg-gray-500 hover:bg-gray-600 text-white font-bold py-3 rounded-lg transition shadow mt-auto">
+                        <i class="fas fa-redo mr-2"></i> 重新設定
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Winner Overlay -->
+        <div id="winner-overlay" class="hide fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center fade-in">
+            <div class="text-center">
+                <i class="fas fa-crown text-yellow-400 text-8xl mb-6 animate-bounce"></i>
+                <h2 class="text-5xl font-black text-white mb-4">投票結束！</h2>
+                <p class="text-3xl text-yellow-300 font-bold mb-8">恭喜最高票得主：<span id="winner-name" class="text-6xl block mt-4"></span></p>
+                <button onclick="closeWinner()" class="px-8 py-3 bg-white text-black font-bold rounded-full text-xl hover:bg-gray-200">查看最終圖表</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 畫面 3: 觀眾投票頁面 (Voter View) -->
+    <div id="voter-view" class="hide min-h-screen bg-gray-50 flex flex-col fade-in">
+        <!-- Header -->
+        <header class="theme-bg-red text-white py-6 px-4 text-center shadow-md rounded-b-3xl relative z-10">
+            <h1 class="text-2xl font-black tracking-widest mb-1">最佳華服人氣獎</h1>
+            <p class="text-sm opacity-80">請選擇您最喜愛的參賽者</p>
+        </header>
+
+        <!-- Voting Area -->
+        <main class="flex-grow p-4 md:p-6 overflow-y-auto">
+            <div id="voter-status" class="text-center font-bold text-lg mb-4 text-red-600 font-sans"></div>
+            
+            <div id="voter-candidate-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4 font-sans">
+                <!-- Buttons injected via JS -->
+            </div>
+            
+            <div id="voted-success" class="hide flex flex-col items-center justify-center mt-20 fade-in">
+                <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mb-6 shadow-inner">
+                    <i class="fas fa-check text-5xl text-green-500"></i>
+                </div>
+                <h2 class="text-2xl font-bold text-gray-800 mb-2 text-center">感謝您的投票！</h2>
+                <p class="text-gray-500 text-center">您的寶貴一票已成功送出。</p>
+            </div>
+        </main>
+        
+        <footer class="text-center p-4 text-xs text-gray-400">
+            即時互動投票系統
+        </footer>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- Firebase Setup (跨裝置即時連線) ---
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        
+        let app, auth, db;
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            db = getFirestore(app);
+        } catch (e) {
+            console.error("Firebase init error:", e);
+        }
+
+        // --- 狀態管理 ---
+        let candidates = [];
+        let votes = [];
+        let totalSeconds = 180;
+        let timerInterval = null;
+        let chartInstance = null;
+        let simulationInterval = null;
+        let isTimerRunning = false;
+        let sessionId = null;
+        let unsubscribeVotes = null;
+
+        // 將模組內的函數暴露給全域，讓 HTML 中的 onclick 可以呼叫
+        window.addCandidate = addCandidate;
+        window.removeCandidate = removeCandidate;
+        window.startEvent = startEvent;
+        window.toggleTimer = toggleTimer;
+        window.toggleSimulation = toggleSimulation;
+        window.resetSystem = resetSystem;
+        window.closeWinner = closeWinner;
+        window.castVote = castVote;
+        window.openVoterViewLocally = openVoterViewLocally;
+
+        async function initApp() {
+            // 匿名登入以使用資料庫
+            try {
+                if (typeof __initial_auth_token !== 'undefined') {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth Error:", error);
+            }
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const mode = urlParams.get('mode');
+            
+            if (mode === 'voter') {
+                // 手機投票模式
+                document.getElementById('setup-view').classList.add('hide');
+                document.getElementById('dashboard-view').classList.add('hide');
+                document.getElementById('voter-view').classList.remove('hide');
+                initVoterView(urlParams);
+            } else {
+                // 電腦主控台模式
+                document.getElementById('candidate-input').addEventListener('keypress', function (e) {
+                    if (e.key === 'Enter') addCandidate();
+                });
+            }
+        }
+
+        function addCandidate() {
+            const input = document.getElementById('candidate-input');
+            const name = input.value.trim();
+            if (name) {
+                candidates.push(name);
+                votes.push(0);
+                input.value = '';
+                updateCandidateList();
+            }
+        }
+
+        function removeCandidate(index) {
+            candidates.splice(index, 1);
+            votes.splice(index, 1);
+            updateCandidateList();
+        }
+
+        function updateCandidateList() {
+            const list = document.getElementById('candidate-list');
+            
+            if (candidates.length === 0) {
+                list.innerHTML = '<li class="text-gray-400 text-center py-4" id="empty-msg">尚未新增任何參賽者</li>';
+                return;
+            }
+
+            list.innerHTML = '';
+            candidates.forEach((cand, index) => {
+                const li = document.createElement('li');
+                li.className = 'flex justify-between items-center bg-gray-50 px-4 py-2 rounded shadow-sm border border-gray-100';
+                li.innerHTML = `
+                    <span class="font-bold text-lg">${cand}</span>
+                    <button onclick="removeCandidate(${index})" class="text-red-500 hover:text-red-700 transition">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                `;
+                list.appendChild(li);
+            });
+        }
+
+        function startEvent() {
+            if (candidates.length === 0) {
+                // 使用自訂 UI 取代 alert
+                const input = document.getElementById('candidate-input');
+                input.placeholder = '請先在此輸入至少一位參賽者！';
+                input.classList.add('border-red-500', 'bg-red-50');
+                setTimeout(() => input.classList.remove('border-red-500', 'bg-red-50'), 2000);
+                return;
+            }
+
+            // 設定倒數計時
+            const mins = parseInt(document.getElementById('timer-minutes').value) || 0;
+            const secs = parseInt(document.getElementById('timer-seconds').value) || 0;
+            totalSeconds = mins * 60 + secs;
+            updateTimerDisplay();
+
+            // 切換畫面
+            document.getElementById('setup-view').classList.add('hide');
+            document.getElementById('dashboard-view').classList.remove('hide');
+
+            // 初始化圖表
+            initChart();
+
+            // 產生隨機且唯一的 Session ID（投票房間 ID）
+            sessionId = Date.now().toString() + Math.floor(Math.random() * 1000);
+
+            // 將候選人名單存入雲端，避免 URL 過長導致 QR Code 產生失敗
+            if (auth.currentUser) {
+                const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', `session_${sessionId}`);
+                setDoc(sessionRef, { candidates: candidates, createdAt: Date.now() }).catch(e => console.error("Error saving session:", e));
+            }
+
+            // 組合只包含房間 ID 的網址
+            let currentUrl = window.location.href.split('?')[0];
+            
+            // [修正 QR Code 錯誤]：預防在預覽環境下 (如 data: URI 或 about:srcdoc) 網址無效
+            if (currentUrl.length > 250 || currentUrl.startsWith('data:') || currentUrl.startsWith('about:')) {
+                currentUrl = "https://demo.voting-system.com/vote"; 
+                document.getElementById('qrcode-warning').classList.remove('hide');
+            }
+            
+            const voterUrl = `${currentUrl}?mode=voter&sid=${sessionId}`;
+            
+            // 使用穩定可靠的外部 API 產生圖片，避免 JS 繪圖套件在預覽環境中失效
+            const qrApiUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&color=8b1c1c&data=${encodeURIComponent(voterUrl)}`;
+            document.getElementById('qrcode').innerHTML = `<img src="${qrApiUrl}" alt="Voting QR Code" class="mx-auto shadow-sm rounded-lg" style="width: 160px; height: 160px;" />`;
+
+            // 監聽雲端資料庫的投票事件 (讓手機票數即時傳回電腦)
+            if (auth.currentUser) {
+                const votesRef = collection(db, 'artifacts', appId, 'public', 'data', `votes_${sessionId}`);
+                unsubscribeVotes = onSnapshot(votesRef, (snapshot) => {
+                    snapshot.docChanges().forEach((change) => {
+                        if (change.type === "added") {
+                            const voteData = change.doc.data();
+                            handleIncomingVote(voteData.index);
+                        }
+                    });
+                }, (error) => {
+                    console.error("Firebase Listener Error:", error);
+                });
+            }
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('resultsChart').getContext('2d');
+            
+            Chart.defaults.font.family = "'Noto Sans TC', sans-serif";
+            Chart.defaults.color = '#555';
+
+            chartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: candidates,
+                    datasets: [{
+                        label: '得票數',
+                        data: votes,
+                        backgroundColor: 'rgba(212, 175, 55, 0.8)',
+                        borderColor: 'rgba(139, 28, 28, 1)',
+                        borderWidth: 2,
+                        borderRadius: 8,
+                        barPercentage: 0.6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(139, 28, 28, 0.9)',
+                            titleFont: { size: 16 },
+                            bodyFont: { size: 16, weight: 'bold' },
+                            padding: 12
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: { stepSize: 1, font: { size: 14 } },
+                            grid: { color: 'rgba(0,0,0,0.05)' }
+                        },
+                        y: {
+                            ticks: { font: { size: 18, weight: 'bold', family: "'Noto Serif TC', serif" }, color: '#333' },
+                            grid: { display: false }
+                        }
+                    },
+                    animation: {
+                        duration: 400,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+        function toggleTimer() {
+            const btn = document.getElementById('btn-toggle-timer');
+            if (isTimerRunning) {
+                clearInterval(timerInterval);
+                btn.innerHTML = '<i class="fas fa-play mr-2"></i> 繼續計時';
+                btn.className = "w-full bg-green-700 hover:bg-green-800 text-white font-bold py-3 rounded-lg transition shadow";
+            } else {
+                if (totalSeconds <= 0) return;
+                timerInterval = setInterval(() => {
+                    totalSeconds--;
+                    updateTimerDisplay();
+                    if (totalSeconds <= 0) {
+                        endVoting();
+                    }
+                }, 1000);
+                btn.innerHTML = '<i class="fas fa-pause mr-2"></i> 暫停計時';
+                btn.className = "w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-3 rounded-lg transition shadow";
+            }
+            isTimerRunning = !isTimerRunning;
+        }
+
+        function updateTimerDisplay() {
+            const m = Math.floor(totalSeconds / 60).toString().padStart(2, '0');
+            const s = (totalSeconds % 60).toString().padStart(2, '0');
+            document.getElementById('timer-display').innerText = `${m}:${s}`;
+        }
+
+        function handleIncomingVote(index) {
+            if(totalSeconds > 0) {
+                votes[index]++;
+                chartInstance.update();
+            }
+        }
+
+        function toggleSimulation() {
+            const btn = document.getElementById('btn-simulation');
+            const text = document.getElementById('sim-text');
+            
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+                simulationInterval = null;
+                text.innerText = "開啟隨機模擬投票";
+                btn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                btn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            } else {
+                if (totalSeconds <= 0) {
+                    return; // 時間到不允許模擬
+                }
+                text.innerText = "停止模擬";
+                btn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                btn.classList.add('bg-red-600', 'hover:bg-red-700');
+                
+                // 本地端隨機增加票數展示動畫
+                simulationInterval = setInterval(() => {
+                    if (totalSeconds > 0 && isTimerRunning) {
+                        const randomIdx = Math.floor(Math.random() * candidates.length);
+                        const biasedIdx = Math.random() > 0.7 ? 0 : randomIdx; // 第一位稍微有些優勢
+                        handleIncomingVote(biasedIdx);
+                    }
+                }, 600);
+            }
+        }
+
+        function endVoting() {
+            clearInterval(timerInterval);
+            if(simulationInterval) clearInterval(simulationInterval);
+            isTimerRunning = false;
+            document.getElementById('btn-toggle-timer').disabled = true;
+            document.getElementById('btn-toggle-timer').classList.add('opacity-50', 'cursor-not-allowed');
+            
+            // 停止監聽雲端資料庫以節省資源
+            if (unsubscribeVotes) {
+                unsubscribeVotes();
+                unsubscribeVotes = null;
+            }
+
+            // 計算得票最高者
+            let maxVotes = -1;
+            let winners = [];
+            votes.forEach((v, i) => {
+                if(v > maxVotes) { maxVotes = v; winners = [candidates[i]]; }
+                else if(v === maxVotes) { winners.push(candidates[i]); }
+            });
+
+            document.getElementById('winner-name').innerText = winners.join(' & ');
+            document.getElementById('winner-overlay').classList.remove('hide');
+        }
+
+        function closeWinner() {
+            document.getElementById('winner-overlay').classList.add('hide');
+        }
+
+        function resetSystem() {
+            window.location.reload();
+        }
+
+        function openVoterViewLocally() {
+            // 為了確保在預覽環境與各種測試情況下皆能穩定運作，直接於同一個畫面切換來模擬手機介面
+            document.getElementById('dashboard-view').classList.add('hide');
+            document.getElementById('voter-view').classList.remove('hide');
+            const mockParams = new URLSearchParams(`?mode=voter&sid=${sessionId}`);
+            initVoterView(mockParams);
+        }
+
+        async function initVoterView(urlParams) {
+            sessionId = urlParams.get('sid');
+            
+            if (!sessionId) {
+                document.getElementById('voter-status').innerText = "無效的投票連結，請重新掃描主畫面的 QR Code。";
+                return;
+            }
+
+            document.getElementById('voter-status').innerText = "載入候選人資料中，請稍候...";
+
+            try {
+                // 檢查是否成功連接 Firebase
+                if (!db || !auth.currentUser) {
+                    throw new Error("No database connection");
+                }
+
+                // 從雲端讀取候選人名單
+                const sessionRef = doc(db, 'artifacts', appId, 'public', 'data', `session_${sessionId}`);
+                const sessionSnap = await getDoc(sessionRef);
+                
+                if (!sessionSnap.exists()) {
+                    document.getElementById('voter-status').innerText = "找不到這場投票活動，可能已經結束或失效。";
+                    return;
+                }
+
+                const voterCandidates = sessionSnap.data().candidates;
+                renderVoterButtons(voterCandidates);
+            } catch (error) {
+                console.warn("Fetch session fallback:", error);
+                
+                // 降級保護機制：當預覽環境無法連線雲端時，直接使用本地端的資料進行展示
+                if (candidates && candidates.length > 0) {
+                    renderVoterButtons(candidates);
+                } else {
+                    document.getElementById('voter-status').innerText = "載入失敗，請確認網路連線並重新整理頁面。";
+                }
+            }
+        }
+
+        function renderVoterButtons(voterCandidates) {
+            document.getElementById('voter-status').classList.add('hide');
+            const listContainer = document.getElementById('voter-candidate-list');
+            listContainer.innerHTML = ''; // 清空避免重複渲染
+            
+            voterCandidates.forEach((cand, index) => {
+                const btn = document.createElement('button');
+                btn.className = "w-full bg-white p-6 rounded-2xl shadow-md border-2 border-gray-100 flex flex-col items-center justify-center gap-3 transition-transform transform active:scale-95 mb-4";
+                btn.innerHTML = `
+                    <div class="w-16 h-16 rounded-full theme-bg-red text-white flex items-center justify-center text-2xl font-bold mb-2 shadow-inner">
+                        ${index + 1}
+                    </div>
+                    <span class="text-xl font-bold text-gray-800">${cand}</span>
+                    <span class="mt-2 text-sm bg-gray-100 text-gray-600 px-4 py-1 rounded-full">投給他/她 <i class="fas fa-hand-pointer ml-1"></i></span>
+                `;
+                btn.onclick = () => castVote(index, cand);
+                listContainer.appendChild(btn);
+            });
+        }
+
+        async function castVote(index, name) {
+            // 隱藏名單，立即顯示成功畫面 (Optimistic UI 更新)
+            document.getElementById('voter-candidate-list').classList.add('hide');
+            document.getElementById('voter-status').classList.add('hide');
+            
+            try {
+                if (db && auth.currentUser) {
+                    // 將票數送上雲端資料庫
+                    const votesRef = collection(db, 'artifacts', appId, 'public', 'data', `votes_${sessionId}`);
+                    await addDoc(votesRef, {
+                        index: index,
+                        timestamp: Date.now()
+                    });
+                } else {
+                    // 若無雲端連線，則在本地直接觸發計票動作
+                    handleIncomingVote(index);
+                }
+
+                const successView = document.getElementById('voted-success');
+                successView.classList.remove('hide');
+                
+                // 手機震動回饋 (如果裝置支援)
+                if (navigator.vibrate) {
+                    navigator.vibrate(50);
+                }
+            } catch (error) {
+                console.warn("Vote Error Fallback:", error);
+                
+                // 即使雲端失敗，本地測試也能繼續進行
+                if (candidates && candidates.length > 0) {
+                     handleIncomingVote(index);
+                     document.getElementById('voted-success').classList.remove('hide');
+                } else {
+                     document.getElementById('voter-status').innerText = "連線異常，投票發送失敗，請重新整理頁面再試。";
+                     document.getElementById('voter-status').classList.remove('hide');
+                     document.getElementById('voter-candidate-list').classList.remove('hide');
+                }
+            }
+        }
+
+        // 頁面載入後啟動應用程式
+        window.onload = initApp;
+    </script>
+</body>
+</html>
